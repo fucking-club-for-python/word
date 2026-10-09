@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>受かる英語 単語検索</title>
+<title>LEAP単語検索</title>
 <style>
 :root{--bg:#fafaf8;--fg:#1c1c1a;--sub:#6b6b66;--line:#e2e2dc;--acc:#2a6df4;--card:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--fg:#ececea;--sub:#9a9a95;--line:#2d2d32;--acc:#6b9bff;--card:#202024}}
@@ -23,9 +23,9 @@ li{background:var(--card);border:1px solid var(--line);border-radius:10px;paddin
 .m.hide{filter:blur(6px);cursor:pointer}
 .empty{color:var(--sub);text-align:center;padding:32px 0}
 </style></head><body><main>
-<h1>受かる英語 単語検索</h1>
+<h1>単語検索</h1>
 <div class="bar">
-<input id="q" type="text" placeholder="例：a と入力" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
+<input id="q" type="text" placeholder="例：入力してください" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
 <div class="opts"><label><input id="hide" type="checkbox"> 意味を隠す（タップで表示）</label><span class="count" id="c"></span></div>
 </div>
 <ul id="list"></ul>

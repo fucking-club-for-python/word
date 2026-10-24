@@ -34,13 +34,13 @@ li b{font-size:18px}small{opacity:.6;margin-left:6px}
 <div id="play" hidden>
 <div id="prog"></div>
 <div id="card"></div>
-<div class="row" id="btns"><button id="ng">まだ ←</button><button id="ok">覚えた →</button></div>
+<div class="row" id="btns"><button id="ng">間違えた ←</button><button id="ok">できた →</button></div>
 <p class="hint">カードをタップ（またはスペース）でめくる</p>
 </div>
 <div id="res" hidden>
 <h3 id="score"></h3>
 <div id="ngl"></div>
-<button id="again">まだのカードだけ復習</button>
+<button id="again">間違えた単語だけ復習</button>
 <button id="back">設定に戻る</button>
 </div>
 </section>
@@ -108,10 +108,10 @@ function next(){
 }
 function finish(){
   const okN=Q.length-ng.length;
-  $("score").textContent="結果："+okN+" / "+Q.length+" 覚えた";
+  $("score").textContent="結果："+okN+" / "+Q.length+" できた";
   $("ngl").innerHTML=ng.length
-    ?"<p>まだのカード：</p><ul>"+ng.map(d=>`<li><b>${esc(d.w)}</b><small>No.${d.n}</small><div>${esc(d.m)}</div></li>`).join("")+"</ul>"
-    :"<p>全部覚えました！</p>";
+    ?"<p>間違えた単語（"+ng.length+"個）：</p><ul>"+ng.slice().sort((a,b)=>a.n-b.n).map(d=>`<li><b>${esc(d.w)}</b><small>No.${d.n}</small><div>${esc(d.m)}</div></li>`).join("")+"</ul>"
+    :"<p>全問できました！</p>";
   $("again").hidden=!ng.length;
   view("res");
 }

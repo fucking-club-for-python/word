@@ -1,1 +1,10 @@
+#password = sakuma.0406
+password =(input('パスワードを入力して'))
+if password == 'sakuma.0406':
+   print('正しいです。')
+   mailadpress = input('メールアドレスを入力して')
+if mailadpress == 'sakuma0406@gmail.com':
+  print('正解です')   
+else:
+  print('間違っています。')   
 

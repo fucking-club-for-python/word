@@ -1,167 +1,388 @@
 <!DOCTYPE html>
-<html lang="ja"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>単語帳ツール</title>
-<style>
-:root{color-scheme:light dark}
-body{font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;max-width:720px;margin:0 auto;padding:16px;line-height:1.5}
-input,select,button{font-size:16px;padding:8px 10px;margin:2px}
-button{cursor:pointer}
-.tabs button{padding:8px 20px}.tabs .on{font-weight:bold;border-bottom:3px solid #2a6df4}
-#q{width:100%;box-sizing:border-box;font-size:20px}
-ul{padding:0}li{list-style:none;border:1px solid #8885;border-radius:8px;padding:8px 10px;margin:6px 0}
-li b{font-size:18px}small{opacity:.6;margin-left:6px}
-#card{border:2px solid #8885;border-radius:16px;min-height:180px;padding:24px;margin:12px 0;text-align:center;cursor:pointer;display:flex;flex-direction:column;justify-content:center}
-.f{font-size:28px;font-weight:bold}.b{font-size:20px;margin-top:8px}.hint{opacity:.5;font-size:13px;margin-top:12px}
-.row{display:flex;gap:8px}.row button{flex:1;padding:14px;font-size:18px}
-</style></head><body>
-<h2>単語帳ツール</h2>
-<p><span id="c"></span> <span id="sv" class="hint" style="opacity:.8"></span></p>
-<div class="tabs"><button id="t1" class="on">検索</button><button id="t2">テスト</button></div>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>単語帳ツール</title>
+  <style>
+    :root { color-scheme: light dark; }
 
-<section id="s1">
-<input id="q" placeholder="例：a と入力" autocomplete="off">
-<ul id="list"></ul>
-</section>
-
-<section id="s2" hidden>
-<div id="setup">
-<p>範囲 No.<input id="a" type="number" style="width:80px"> 〜 <input id="b" type="number" style="width:80px"></p>
-<p><select id="dir"><option value="0">英語 → 日本語</option><option value="1">日本語 → 英語</option></select>
-<label><input type="checkbox" id="sh" checked>シャッフル</label></p>
-<p><button id="ngOnly">保存した「まだ」だけ出題</button> <button id="reset">進捗をリセット</button></p>
-<button id="go">スタート</button>
-</div>
-<div id="play" hidden>
-<div id="prog"></div>
-<div id="card"></div>
-<div class="row" id="btns"><button id="ng">まだ ←</button><button id="ok">覚えた →</button></div>
-<p class="hint">カードをタップ（またはスペース）でめくる</p>
-</div>
-<div id="res" hidden>
-<h3 id="score"></h3>
-<div id="ngl"></div>
-<button id="again">まだのカードだけ復習</button>
-<button id="back">設定に戻る</button>
-</div>
-</section>
-
-<script>
-const $=i=>document.getElementById(i);
-const esc=s=>s.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));
-
-/* 保存（localStorage：この端末のブラウザに保存） */
-const KEY="tangocho-progress-v1";
-let S={st:{},set:null};
-function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"null");if(v)S=Object.assign(S,v)}catch(e){}}
-function persist(){
-  try{localStorage.setItem(KEY,JSON.stringify(S));flash("保存しました")}
-  catch(e){flash("この環境では保存できません")}
-  updCount();
-}
-function flash(m){$("sv").textContent=m;clearTimeout(flash.t);flash.t=setTimeout(()=>{$("sv").textContent=""},2000)}
-const cnt=v=>Object.values(S.st).filter(x=>x===v).length;
-const mk=n=>S.st[n]==="ok"?"✅":S.st[n]==="ng"?"❗":"";
-function updCount(){$("c").textContent=D.length+"語収録　✅覚えた "+cnt("ok")+"　❗まだ "+cnt("ng")}
-
-const D=[/* ← 元ファイルの51行目（2300語のデータ）をここに貼る */];
-
-function init(){
-  load();
-  if(D.length){
-    $("a").value=D[0].n;
-    $("b").value=Math.min(D[0].n+49,D[D.length-1].n);
-  }
-  if(S.set&&S.set.a){$("a").value=S.set.a;$("b").value=S.set.b;$("dir").value=S.set.dir;$("sh").checked=S.set.sh}
-  updCount();
-  search();
-}
-
-/* タブ */
-function tab(n){
-  $("s1").hidden=n!=1;$("s2").hidden=n!=2;
-  $("t1").className=n==1?"on":"";$("t2").className=n==2?"on":"";
-}
-$("t1").onclick=()=>tab(1);$("t2").onclick=()=>tab(2);
-
-/* 検索 */
-function search(){
-  const k=$("q").value.trim().toLowerCase();
-  if(!k){$("list").innerHTML="";return}
-  $("list").innerHTML=D.filter(d=>d.w.toLowerCase().startsWith(k))
-    .map(d=>`<li><b>${esc(d.w)}</b> ${mk(d.n)}<small>No.${d.n}</small><div>${esc(d.m)}</div></li>`).join("");
-}
-$("q").oninput=search;
-
-/* テスト */
-let Q=[],i=0,ng=[],flip=false,last=[];
-function view(v){
-  $("setup").hidden=v!="setup";$("play").hidden=v!="play";$("res").hidden=v!="res";
-}
-function start(list){
-  last=list;
-  Q=list.slice();
-  if($("sh").checked){
-    for(let j=Q.length-1;j>0;j--){
-      const k=Math.floor(Math.random()*(j+1));
-      [Q[j],Q[k]]=[Q[k],Q[j]];
+    body {
+      font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 16px;
+      line-height: 1.5;
     }
-  }
-  i=0;ng=[];view("play");draw();
-}
-function draw(){
-  flip=false;show();
-}
-function show(){
-  const d=Q[i],e2j=$("dir").value=="0";
-  const front=e2j?d.w:d.m,back=e2j?d.m:d.w;
-  $("prog").textContent=(i+1)+" / "+Q.length+"　（No."+d.n+"）";
-  $("card").innerHTML=`<div class="f">${esc(front)}</div>`+
-    (flip?`<hr style="width:100%;opacity:.3"><div class="b">${esc(back)}</div>`
-         :`<div class="hint">タップでめくる</div>`);
-}
-function next(){
-  i++;
-  if(i>=Q.length){finish()}else{draw()}
-}
-function finish(){
-  const okN=Q.length-ng.length;
-  $("score").textContent="結果："+okN+" / "+Q.length+" 覚えた";
-  $("ngl").innerHTML=ng.length
-    ?"<p>まだのカード：</p><ul>"+ng.map(d=>`<li><b>${esc(d.w)}</b><small>No.${d.n}</small><div>${esc(d.m)}</div></li>`).join("")+"</ul>"
-    :"<p>全部覚えました！</p>";
-  $("again").hidden=!ng.length;
-  view("res");
-}
-$("go").onclick=()=>{
-  S.set={a:$("a").value,b:$("b").value,dir:$("dir").value,sh:$("sh").checked};persist();
-  const a=+$("a").value,b=+$("b").value;
-  const L=D.filter(d=>d.n>=Math.min(a,b)&&d.n<=Math.max(a,b));
-  if(!L.length){alert("該当する単語がありません。範囲を確認してください。");return}
-  start(L);
-};
-$("card").onclick=()=>{flip=!flip;show()};
-$("ok").onclick=()=>{S.st[Q[i].n]="ok";persist();next()};
-$("ng").onclick=()=>{ng.push(Q[i]);S.st[Q[i].n]="ng";persist();next()};
-$("btns").onmousedown=e=>e.preventDefault();
-$("again").onclick=()=>start(ng.slice());
-$("back").onclick=()=>view("setup");
-document.addEventListener("keydown",e=>{
-  if($("s2").hidden||$("play").hidden)return;
-  if(e.key==" "||e.key=="Enter"){e.preventDefault();flip=!flip;show()}
-  else if(e.key=="ArrowRight"){$("ok").click()}
-  else if(e.key=="ArrowLeft"){$("ng").click()}
-});
 
-$("ngOnly").onclick=()=>{
-  const L=D.filter(d=>S.st[d.n]==="ng");
-  if(!L.length){alert("保存された「まだ」の単語はありません。");return}
-  start(L);
-};
-$("reset").onclick=()=>{
-  if(!confirm("覚えた／まだの記録をすべて消しますか？"))return;
-  S.st={};persist();search();
-};
+    input, select, button {
+      font-size: 16px;
+      padding: 8px 10px;
+      margin: 2px;
+    }
 
-init();
-</script></body></html>
+    button { cursor: pointer; }
+
+    .tabs button { padding: 8px 20px; }
+    .tabs .on { font-weight: bold; border-bottom: 3px solid #2a6df4; }
+
+    #q {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 20px;
+    }
+
+    ul { padding: 0; }
+
+    li {
+      list-style: none;
+      border: 1px solid #8885;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin: 6px 0;
+    }
+
+    li b { font-size: 18px; }
+    small { opacity: .6; margin-left: 6px; }
+
+    #card {
+      border: 2px solid #8885;
+      border-radius: 16px;
+      min-height: 180px;
+      padding: 24px;
+      margin: 12px 0;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .f { font-size: 28px; font-weight: bold; }
+    .b { font-size: 20px; margin-top: 8px; }
+    .hint { opacity: .5; font-size: 13px; margin-top: 12px; }
+
+    .row { display: flex; gap: 8px; }
+    .row button { flex: 1; padding: 14px; font-size: 18px; }
+  </style>
+</head>
+<body>
+
+  <h2>単語帳ツール</h2>
+  <p>
+    <span id="c"></span>
+    <span id="sv" class="hint" style="opacity: .8"></span>
+  </p>
+
+  <div class="tabs">
+    <button id="t1" class="on">検索</button>
+    <button id="t2">テスト</button>
+  </div>
+
+  <!-- 検索 -->
+  <section id="s1">
+    <input id="q" placeholder="例：a と入力" autocomplete="off">
+    <ul id="list"></ul>
+  </section>
+
+  <!-- テスト -->
+  <section id="s2" hidden>
+    <div id="setup">
+      <p>
+        範囲 No.
+        <input id="a" type="number" style="width: 80px"> 〜
+        <input id="b" type="number" style="width: 80px">
+      </p>
+      <p>
+        <select id="dir">
+          <option value="0">英語 → 日本語</option>
+          <option value="1">日本語 → 英語</option>
+        </select>
+        <label><input type="checkbox" id="sh" checked>シャッフル</label>
+      </p>
+      <p>
+        <button id="ngOnly">保存した「まだ」だけ出題</button>
+        <button id="reset">進捗をリセット</button>
+      </p>
+      <button id="go">スタート</button>
+    </div>
+
+    <div id="play" hidden>
+      <div id="prog"></div>
+      <div id="card"></div>
+      <div class="row" id="btns">
+        <button id="ng">まだ ←</button>
+        <button id="ok">覚えた →</button>
+      </div>
+      <p class="hint">カードをタップ（またはスペース）でめくる</p>
+    </div>
+
+    <div id="res" hidden>
+      <h3 id="score"></h3>
+      <div id="ngl"></div>
+      <button id="again">まだのカードだけ復習</button>
+      <button id="back">設定に戻る</button>
+    </div>
+  </section>
+
+  <script src="words.js"></script>
+  <script>
+    /* ===== 共通 ===== */
+    const $ = id => document.getElementById(id);
+
+    const esc = s => s.replace(/[&<>]/g, m => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;"
+    }[m]));
+
+    /* ===== 保存（この端末のブラウザに保存） ===== */
+    const STORAGE_KEY = "tangocho-progress-v1";
+
+    // st: 単語No.ごとの状態 ("ok" = 覚えた, "ng" = まだ)
+    // set: 前回の出題設定
+    let saved = { st: {}, set: null };
+
+    function load() {
+      try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        if (data) saved = Object.assign(saved, data);
+      } catch (e) {
+        // 壊れたデータは無視して初期状態で使う
+      }
+    }
+
+    function persist() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+        flash("保存しました");
+      } catch (e) {
+        flash("この環境では保存できません");
+      }
+      updateCount();
+    }
+
+    function flash(message) {
+      $("sv").textContent = message;
+      clearTimeout(flash.timer);
+      flash.timer = setTimeout(() => { $("sv").textContent = ""; }, 2000);
+    }
+
+    const countStatus = status =>
+      Object.values(saved.st).filter(s => s === status).length;
+
+    const statusMark = n =>
+      saved.st[n] === "ok" ? "✅" : saved.st[n] === "ng" ? "❗" : "";
+
+    function updateCount() {
+      $("c").textContent =
+        `${D.length}語収録　✅覚えた ${countStatus("ok")}　❗まだ ${countStatus("ng")}`;
+    }
+
+    /* ===== 初期化 ===== */
+    function init() {
+      load();
+
+      if (D.length) {
+        $("a").value = D[0].n;
+        $("b").value = Math.min(D[0].n + 49, D[D.length - 1].n);
+      }
+
+      if (saved.set && saved.set.a) {
+        $("a").value = saved.set.a;
+        $("b").value = saved.set.b;
+        $("dir").value = saved.set.dir;
+        $("sh").checked = saved.set.sh;
+      }
+
+      updateCount();
+      search();
+    }
+
+    /* ===== タブ ===== */
+    function showTab(n) {
+      $("s1").hidden = n !== 1;
+      $("s2").hidden = n !== 2;
+      $("t1").className = n === 1 ? "on" : "";
+      $("t2").className = n === 2 ? "on" : "";
+    }
+
+    $("t1").onclick = () => showTab(1);
+    $("t2").onclick = () => showTab(2);
+
+    /* ===== 検索 ===== */
+    function search() {
+      const key = $("q").value.trim().toLowerCase();
+
+      if (!key) {
+        $("list").innerHTML = "";
+        return;
+      }
+
+      $("list").innerHTML = D
+        .filter(d => d.w.toLowerCase().startsWith(key))
+        .map(d => `
+          <li>
+            <b>${esc(d.w)}</b> ${statusMark(d.n)}
+            <small>No.${d.n}</small>
+            <div>${esc(d.m)}</div>
+          </li>`)
+        .join("");
+    }
+
+    $("q").oninput = search;
+
+    /* ===== テスト ===== */
+    let queue = [];      // 出題中のカード
+    let index = 0;       // 現在の位置
+    let missed = [];     // 「まだ」にしたカード
+    let flipped = false; // 裏面を表示中か
+
+    function showView(name) {
+      $("setup").hidden = name !== "setup";
+      $("play").hidden = name !== "play";
+      $("res").hidden = name !== "res";
+    }
+
+    function startTest(list) {
+      queue = list.slice();
+
+      if ($("sh").checked) {
+        for (let j = queue.length - 1; j > 0; j--) {
+          const k = Math.floor(Math.random() * (j + 1));
+          [queue[j], queue[k]] = [queue[k], queue[j]];
+        }
+      }
+
+      index = 0;
+      missed = [];
+      showView("play");
+      drawCard();
+    }
+
+    function drawCard() {
+      flipped = false;
+      renderCard();
+    }
+
+    function renderCard() {
+      const card = queue[index];
+      const englishFirst = $("dir").value === "0";
+      const front = englishFirst ? card.w : card.m;
+      const back = englishFirst ? card.m : card.w;
+
+      $("prog").textContent = `${index + 1} / ${queue.length}　（No.${card.n}）`;
+
+      $("card").innerHTML =
+        `<div class="f">${esc(front)}</div>` +
+        (flipped
+          ? `<hr style="width: 100%; opacity: .3"><div class="b">${esc(back)}</div>`
+          : `<div class="hint">タップでめくる</div>`);
+    }
+
+    function nextCard() {
+      index++;
+      if (index >= queue.length) {
+        finishTest();
+      } else {
+        drawCard();
+      }
+    }
+
+    function finishTest() {
+      const okCount = queue.length - missed.length;
+      $("score").textContent = `結果：${okCount} / ${queue.length} 覚えた`;
+
+      $("ngl").innerHTML = missed.length
+        ? "<p>まだのカード：</p><ul>" +
+          missed.map(d => `
+            <li>
+              <b>${esc(d.w)}</b>
+              <small>No.${d.n}</small>
+              <div>${esc(d.m)}</div>
+            </li>`).join("") +
+          "</ul>"
+        : "<p>全部覚えました！</p>";
+
+      $("again").hidden = missed.length === 0;
+      showView("res");
+    }
+
+    /* ===== テストのボタン操作 ===== */
+    $("go").onclick = () => {
+      saved.set = {
+        a: $("a").value,
+        b: $("b").value,
+        dir: $("dir").value,
+        sh: $("sh").checked
+      };
+      persist();
+
+      const from = +$("a").value;
+      const to = +$("b").value;
+      const list = D.filter(d => d.n >= Math.min(from, to) && d.n <= Math.max(from, to));
+
+      if (!list.length) {
+        alert("該当する単語がありません。範囲を確認してください。");
+        return;
+      }
+      startTest(list);
+    };
+
+    $("card").onclick = () => {
+      flipped = !flipped;
+      renderCard();
+    };
+
+    $("ok").onclick = () => {
+      saved.st[queue[index].n] = "ok";
+      persist();
+      nextCard();
+    };
+
+    $("ng").onclick = () => {
+      missed.push(queue[index]);
+      saved.st[queue[index].n] = "ng";
+      persist();
+      nextCard();
+    };
+
+    // ボタンを押してもフォーカスが移らないようにする（キー操作を妨げない）
+    $("btns").onmousedown = e => e.preventDefault();
+
+    $("again").onclick = () => startTest(missed.slice());
+    $("back").onclick = () => showView("setup");
+
+    $("ngOnly").onclick = () => {
+      const list = D.filter(d => saved.st[d.n] === "ng");
+      if (!list.length) {
+        alert("保存された「まだ」の単語はありません。");
+        return;
+      }
+      startTest(list);
+    };
+
+    $("reset").onclick = () => {
+      if (!confirm("覚えた／まだの記録をすべて消しますか？")) return;
+      saved.st = {};
+      persist();
+      search();
+    };
+
+    /* ===== キーボード操作 ===== */
+    document.addEventListener("keydown", e => {
+      if ($("s2").hidden || $("play").hidden) return;
+
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        flipped = !flipped;
+        renderCard();
+      } else if (e.key === "ArrowRight") {
+        $("ok").click();
+      } else if (e.key === "ArrowLeft") {
+        $("ng").click();
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
